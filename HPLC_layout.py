@@ -42,7 +42,7 @@ class Sample:
 # Creating window Here
 window = Tk()
 window.title("HPLC Sample Entry")  # Name of Window
-window.geometry('1200x850')  # Size of Window
+# window.geometry('1200x850')  # Size of Window
 
 # TODO: Add a scrollbar / make expandable
 # TODO: Format so result ends up next to sample name
@@ -51,19 +51,20 @@ window.geometry('1200x850')  # Size of Window
 # Figure out global variables
 
 # Number of Samples Entry
-samples_label = Label(window, text="Number of Samples: ", font=("Times New Roman", 14), width=30)
+samples_label = Label(window, text="Number of Samples: ", font=("Times New Roman", 14), width=20)
 samples_label.grid(sticky=W, column=0, row=0)
 samples = Entry(window, width=10)
 samples.grid(column=1, row=0)
 
 
 # Number of Injections Entry
-inj_label = Label(window, text="Number of Injections: ", font=("Times New Roman", 14), width=30)
+inj_label = Label(window, text="Number of Injections: ", font=("Times New Roman", 14), width=20)
 inj_label.grid(column=2, row=0)
 inj = Entry(window, width=10)
 inj.grid(column=3, row=0)
 
 # Variables for sample sheet
+# TODO: Make this into a dictionary?
 samples_class_list = []
 sample_names = []
 samples_entries = []
@@ -99,6 +100,9 @@ def calculate_results():
     # TODO: Add in calculation for standard
     """Calculate the results for the given values"""
 
+    for i in range(len(result_enteries)):
+        samples_class_list[i].set_peak(int(result_enteries[i].get()))
+
     for ent in result_enteries:
         result_values.append(int(ent.get()))
 
@@ -106,26 +110,26 @@ def calculate_results():
     intercept = int(intercept_en.get())
 
     for i in range(len(sample_names)):
-        row_num[0] +=1
-        val = result_values[i] - intercept
+        sample = samples_class_list[i]
+        val = sample.peak - intercept
         x = val/slope
-        results_text = sample_names[i] + " :" + str(x)
+        results_text = sample.name + " :" + str(x)
         sample_name = Label(window, text=results_text, font=("Times New Roman", 14))
-        sample_name.grid(column=0, row=row_num[0])
+        sample_name.grid(column=4, row=sample.row)
 
 
 def enter_results():
     """ Create space to enter the results"""
     # TODO: Place results in an excel sheet
-    num_samples = samples_inj_num[0]
+    num_samples = len(samples_class_list)
 
     for c in range(num_samples):
-        row_num[0] += 1
-        result_text = "Peak area for " + sample_names[c] + ":"
+        sample = samples_class_list[c]
+        result_text = "Peak area for " + sample.name + ":"
         sample_name = Label(window, text=result_text, font=("Times New Roman", 14))
-        sample_name.grid(column=0, row=row_num[0])
+        sample_name.grid(column=0, row=sample.row)
         en = Entry(window)
-        en.grid(column=1, row=row_num[0])
+        en.grid(column=1, row=sample.row)
         result_enteries.append(en)
 
     row_num[0] += 1
@@ -154,9 +158,10 @@ def fill_samples():
 
     for i in range(len(samples_entries)):
         samples_class_list.append(Sample(samples_entries[i].get()))
+        samples_class_list[i].set_volume(volume_enteries[i].get())
+
         sample_names.append(samples_entries[i].get())
         injection_volume.append(volume_enteries[i].get())
-        print(samples_class_list[i])
 
     num_waters = 0
     num_herclons = 0
@@ -208,11 +213,20 @@ def fill_samples():
     for i in range(samples_inj_num[0]):
         inj_num = 1
         for j in range(samples_inj_num[1]):
-            sample = sample_names[i] + " inj" + str(inj_num)
             inj_num += 1
-            sample_full_list.append(sample)
+            row_num[0] += 1
+
+            # insert into sample object
+            sample = samples_class_list[i]
+            sample_name = sample.name + " inj" + str(inj_num)
+            sample.set_volume(injection_volume[i])
+            sample.set_vial(samples_vial_num)
+            sample.set_row(row_num[0])
+
+            sample_full_list.append(sample_name)
             vial_num.append(samples_vial_num)
             full_volume_list.append(injection_volume[i])
+
         samples_vial_num += 1
         num_waters += 1
         water = "purified water inj" + str(num_waters)
@@ -264,12 +278,12 @@ def enter_nums():
         row_num[0] +=1
         n = num + 1
         txt = ("What is the name of sample %d?\n" % n)
-        sample_name_lbl = Label(window, text=txt, width=30)
+        sample_name_lbl = Label(window, text=txt, width=20)
         sample_name_lbl.grid(sticky=W, column=0, row=row_num[0])
         en = Entry(window, width=10)
         en.grid(column=1, row=row_num[0])
         samples_entries.append(en)
-        sample_volume_lbl = Label(window, text="Volume Required: ", width=30)
+        sample_volume_lbl = Label(window, text="Volume Required: ", width=20)
         sample_volume_lbl.grid(column=2, row=row_num[0])
         vol_en = Entry(window, width=10)
         vol_en.grid(column=3, row=row_num[0])
