@@ -4,6 +4,7 @@ from tkinter import *
 from tkinter import messagebox
 
 import pandas as pd
+import datetime
 
 
 class Sample:
@@ -42,10 +43,9 @@ class Sample:
 # Creating window Here
 window = Tk()
 window.title("HPLC Sample Entry")  # Name of Window
-# window.geometry('1200x850')  # Size of Window
+window.geometry('1200x1200')  # Size of Window
 
 # TODO: Add a scrollbar / make expandable
-# TODO: Format so result ends up next to sample name
 # TODO: Error checking for result values as well as volumes
 
 # Figure out global variables
@@ -94,11 +94,14 @@ slope_en = Entry(window)
 intercept_en = Entry(window)
 result_enteries = []
 result_values = []
+results_list = []
 
 
 def calculate_results():
     # TODO: Add in calculation for standard
     """Calculate the results for the given values"""
+
+    submit_results.config(state=DISABLED)
 
     for i in range(len(result_enteries)):
         samples_class_list[i].set_peak(int(result_enteries[i].get()))
@@ -113,14 +116,33 @@ def calculate_results():
         sample = samples_class_list[i]
         val = sample.peak - intercept
         x = val/slope
-        results_text = sample.name + " :" + str(x)
-        sample_name = Label(window, text=results_text, font=("Times New Roman", 14))
-        sample_name.grid(column=4, row=sample.row)
+        results_text = "Result :" + str(x)
+        sample_name = Label(window, text=results_text, font=("Times New Roman", 16))
+        sample_name.grid(column=3, row=sample.row)
+
+    # Make DataFrame to create excel spreadsheet
+    sample_series = pd.Series(sample_names)
+    result_series = pd.Series(result_values)
+
+    as_series = pd.concat([sample_series, result_series], axis=1)
+    samples_dataframe = pd.DataFrame(as_series)
+    samples_dataframe.columns = ['Sample Name', 'Result']
+
+    # Create a Pandas Excel writer using XlsxWriter as the engine.
+    now = datetime.datetime.now()
+    name = now.strftime("%d-%B-%y %H:%M:%S") + " HPLC Results.xlsx"
+    writer = pd.ExcelWriter(name, engine='xlsxwriter')
+
+    # Convert the dataframe to an XlsxWriter Excel object.
+    samples_dataframe.to_excel(writer, sheet_name='Samples')
 
 
 def enter_results():
     """ Create space to enter the results"""
     # TODO: Place results in an excel sheet
+
+    results_btn.config(state=DISABLED)
+
     num_samples = len(samples_class_list)
 
     for c in range(num_samples):
@@ -135,15 +157,12 @@ def enter_results():
     row_num[0] += 1
     slope_label = Label(window, text="Slope: ", font=("Times New Roman", 14))
     slope_label.grid(column=0, row=row_num[0])
-
     slope_en.grid(column=1, row=row_num[0])
 
     intercept_label = Label(window, text="Intercept: ", font=("Times New Roman", 14))
     intercept_label.grid(column=2, row=row_num[0])
-
     intercept_en.grid(column=3, row=row_num[0])
 
-    submit_results = Button(window, text="Submit Results", command=calculate_results)
     submit_results.grid(column=4, row=row_num[0])
 
 
@@ -209,12 +228,13 @@ def fill_samples():
         elif samples_vial_num == 3:
             vial_num.append(1)
 
+    # row_num[0] = 0
     # Insert number of injections and sample names etc into the list
     for i in range(samples_inj_num[0]):
         inj_num = 1
+        row_num[0] += 1
         for j in range(samples_inj_num[1]):
             inj_num += 1
-            row_num[0] += 1
 
             # insert into sample object
             sample = samples_class_list[i]
@@ -244,15 +264,16 @@ def fill_samples():
     samples_dataframe.columns = ['Vial Number', 'Sample Names', 'Injection Volume']
 
     # Create a Pandas Excel writer using XlsxWriter as the engine.
-    # TODO: Add in a date to the name
-    writer = pd.ExcelWriter('HPLC Samples.xlsx', engine='xlsxwriter')
+    now = datetime.datetime.now()
+    name = now.strftime("%d-%B-%y %H:%M:%S") + " HPLC Samples.xlsx"
+    writer = pd.ExcelWriter(name, engine='xlsxwriter')
 
     # Convert the dataframe to an XlsxWriter Excel object.
     samples_dataframe.to_excel(writer, sheet_name='Samples')
 
-    results_btn = Button(window, text="Enter Results", command=enter_results)
+    # row_num[0] += 2
+    results_btn.grid(column=4, row=row_num[0])
     row_num[0] += 1
-    results_btn.grid(column=2, row=row_num[0])
 
 
 def enter_nums():
@@ -275,7 +296,7 @@ def enter_nums():
 
     # Create the text boxes to enter in the samples
     for num in range(num_samples):
-        row_num[0] +=1
+        row_num[0] += 1
         n = num + 1
         txt = ("What is the name of sample %d?\n" % n)
         sample_name_lbl = Label(window, text=txt, width=20)
@@ -304,7 +325,9 @@ def enter_nums():
 
     enter_btn.grid(column=4, row=row_num[0])
 
-# button to enter in numbers
+# buttons
+submit_results = Button(window, text="Submit Results", command=calculate_results)
+results_btn = Button(window, text="Enter Results", command=enter_results)
 enter_btn = Button(window, text="Submit", command=fill_samples)
 btn = Button(window, text="Enter", command=enter_nums)
 btn.grid(column=4, row=0)
