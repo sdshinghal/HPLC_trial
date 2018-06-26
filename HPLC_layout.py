@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """GUI"""
 
 from tkinter import *
@@ -17,9 +19,9 @@ class Sample:
         self.peak = None
         self.result = None
 
-    def set_vial(self, vial_num):
+    def set_vial(self, vial):
         """ Add in vial number"""
-        self.vial_num = vial_num
+        self.vial_num = vial
 
     def set_volume(self, volume):
         """ Add in volume"""
@@ -43,85 +45,94 @@ class Sample:
 # Creating window Here
 window = Tk()
 window.title("HPLC Sample Entry")  # Name of Window
-window.geometry('1200x1200')  # Size of Window
+w, h = window.winfo_screenwidth()-100, window.winfo_screenheight()-100
+# use the next line if you also want to get rid of the titlebar
+window.geometry("%dx%d+0+0" % (w, h))  # Size of Window
 
-# TODO: Add a scrollbar / make expandable
-# TODO: Error checking for result values as well as volumes
-
-# Figure out global variables
-
-# Number of Samples Entry
-samples_label = Label(window, text="Number of Samples: ", font=("Times New Roman", 14), width=20)
-samples_label.grid(sticky=W, column=0, row=0)
-samples = Entry(window, width=10)
-samples.grid(column=1, row=0)
-
-
-# Number of Injections Entry
-inj_label = Label(window, text="Number of Injections: ", font=("Times New Roman", 14), width=20)
-inj_label.grid(column=2, row=0)
-inj = Entry(window, width=10)
-inj.grid(column=3, row=0)
-
-# Variables for sample sheet
-# TODO: Make this into a dictionary?
+# Global Variables
+num_samples = 0
+num_inj = 0
 samples_class_list = []
 sample_names = []
 samples_entries = []
 volume_enteries = []
 injection_volume = []
 full_volume_list = []
-samples_inj_num = []
 sample_full_list = []
 vial_num = []
 row_num = [0]
+standard_check = [0]
 
-# Standards
-water_1 = BooleanVar()
-water_1.set(True)
+# Number of Samples Entry
+samples_label = Label(window, text="Number of Samples: ", font=("Times New Roman", 14), width=40)
+samples_label.grid(sticky=W, column=0, row=0)
+samples = Entry(window, width=10)
+samples.grid(column=1, row=0)
 
-water_2 = BooleanVar()
-water_2.set(True)
 
-water_3 = BooleanVar()
-water_3.set(True)
+# Number of Injections Entry
+inj_label = Label(window, text="Number of Injections: ", font=("Times New Roman", 14), width=40)
+inj_label.grid(column=2, row=0)
+inj = Entry(window, width=10)
+inj.grid(column=3, row=0)
 
-herclon = BooleanVar()
-herclon.set(True)
+
+# Checkbox for Standards
+standard = BooleanVar()
+standard.set(False)
+standard_chk = Checkbutton(window, text="Would you like to manually add in standards?", var=standard)
+row_num[0] += 1
+standard_chk.grid(column=0, row=row_num[0])
+standard_name_lbl = Label(window, text="Name of Standard: ", width=40)
+standard_en = Entry(window, width=10)
+conc_lbl = Label(window, text="Concentration: ", width=40)
+conc_en = Entry(window, width=10)
 
 # Variables for Results Sheet
 slope_en = Entry(window)
 intercept_en = Entry(window)
+standard_result_en = Entry(window)
 result_enteries = []
 result_values = []
 results_list = []
 
 
+def x_calculation(peak, intercept, slope):
+    """ Calculates value of x"""
+    mx = peak - intercept
+    x = mx/slope
+    return x
+
+
 def calculate_results():
-    # TODO: Add in calculation for standard
     """Calculate the results for the given values"""
 
     submit_results.config(state=DISABLED)
+    result_names = sample_names
 
-    for i in range(len(result_enteries)):
-        samples_class_list[i].set_peak(int(result_enteries[i].get()))
+    try:
+        for i in range(len(result_enteries)):
+            samples_class_list[i].set_peak(int(result_enteries[i].get()))
 
-    for ent in result_enteries:
-        result_values.append(int(ent.get()))
+        slope = int(slope_en.get())
+        intercept = int(intercept_en.get())
 
-    slope = int(slope_en.get())
-    intercept = int(intercept_en.get())
+        for i in range(len(sample_names)):
+            sample = samples_class_list[i]
+            x = x_calculation(int(sample.peak), intercept, slope)
+            result_values.append(x)
 
-    for i in range(len(sample_names)):
-        sample = samples_class_list[i]
-        val = sample.peak - intercept
-        x = val/slope
-        results_text = "Result :" + str(x)
-        sample_name = Label(window, text=results_text, font=("Times New Roman", 16))
-        sample_name.grid(column=3, row=sample.row)
+        standard_result = standard_result_en.get()
+        result_values.append(x_calculation(int(standard_result), intercept, slope))
+
+        result_names.append("Standard")
+
+    except ValueError:
+        messagebox.showerror(title="Error", message="Input integers only")
+        window.destroy()
 
     # Make DataFrame to create excel spreadsheet
-    sample_series = pd.Series(sample_names)
+    sample_series = pd.Series(result_names)
     result_series = pd.Series(result_values)
 
     as_series = pd.concat([sample_series, result_series], axis=1)
@@ -136,14 +147,13 @@ def calculate_results():
     # Convert the dataframe to an XlsxWriter Excel object.
     samples_dataframe.to_excel(writer, sheet_name='Samples')
 
+    window.destroy()
+
 
 def enter_results():
     """ Create space to enter the results"""
-    # TODO: Place results in an excel sheet
 
     results_btn.config(state=DISABLED)
-
-    num_samples = len(samples_class_list)
 
     for c in range(num_samples):
         sample = samples_class_list[c]
@@ -153,6 +163,10 @@ def enter_results():
         en = Entry(window)
         en.grid(column=1, row=sample.row)
         result_enteries.append(en)
+
+    standard_result_lbl = Label(window, text="Standard Result: ", font=("Times New Roman", 14))
+    standard_result_lbl.grid(column=0, row=row_num[0])
+    standard_result_en.grid(column=1, row=row_num[0])
 
     row_num[0] += 1
     slope_label = Label(window, text="Slope: ", font=("Times New Roman", 14))
@@ -171,10 +185,6 @@ def fill_samples():
     # switch off enter button so can't reenter sample names
     enter_btn.config(state=DISABLED)
 
-    # Take in the values
-    # for entry in samples_entries:
-    #     sample_names.append(entry.get())
-
     for i in range(len(samples_entries)):
         samples_class_list.append(Sample(samples_entries[i].get()))
         samples_class_list[i].set_volume(volume_enteries[i].get())
@@ -182,58 +192,47 @@ def fill_samples():
         sample_names.append(samples_entries[i].get())
         injection_volume.append(volume_enteries[i].get())
 
-    num_waters = 0
-    num_herclons = 0
+    num_waters = 1
+    num_standard = 1
     samples_vial_num = 1
 
-    # Checking for standards
     water_text = "purified water inj"
-    herclon_text = "herclon 1mg_ml inj"
 
-    # TODO: Make more Standard
-    if water_1.get() == 1:
-        num_waters += 1
+    sample_full_list.append(water_text + str(num_waters))
+    vial_num.append(1)
+    full_volume_list.append("500")
+    num_waters += 1
+
+    sample_full_list.append(water_text + str(num_waters))
+    vial_num.append(1)
+    full_volume_list.append("500")
+    num_waters += 1
+
+    # Standards
+    if standard_check[0] == 0:
+        herclon_text = "herclon 1mg_ml inj"
+
+        sample_full_list.append(herclon_text + str(num_standard))
+        full_volume_list.append("500")
+        vial_num.append(2)
+        samples_vial_num = 3
+
         sample_full_list.append(water_text + str(num_waters))
         vial_num.append(1)
-        samples_vial_num = 2
         full_volume_list.append("500")
-    if water_2.get() == 1:
         num_waters += 1
-        sample_full_list.append(water_text + str(num_waters))
-        vial_num.append(1)
-        samples_vial_num = 2
-        full_volume_list.append("500")
-    if herclon.get() == 1:
-        sample_full_list.append(herclon_text + str(num_herclons))
-        full_volume_list.append("500")
-        if len(vial_num) == 0:
-            samples_vial_num = 2
-            vial_num.append(1)
-        else:
-            samples_vial_num = 3
-            vial_num.append(2)
-    if water_3.get() == 1:
-        num_waters += 1
-        sample_full_list.append(water_text + str(num_waters))
-        full_volume_list.append("500")
-        if samples_vial_num == 1:
-            vial_num.append(1)
-            samples_vial_num = 2
-        elif samples_vial_num == 2:
-            if num_waters > 1:
-                vial_num.append(1)
-            else:
-                vial_num.append(2)
-                samples_vial_num = 3
-        elif samples_vial_num == 3:
-            vial_num.append(1)
+    elif standard_check[0] == 1:
+        standard_text = standard_en.get()
+        standard_conc = conc_en.get()
+        sample_full_list.append(standard_text + " " + standard_conc + "mg_ml inj" + str(num_standard))
+        vial_num.append(2)
+        num_standard += 1
 
-    # row_num[0] = 0
     # Insert number of injections and sample names etc into the list
-    for i in range(samples_inj_num[0]):
-        inj_num = 1
+    for i in range(num_samples):
+        inj_num = 0
         row_num[0] += 1
-        for j in range(samples_inj_num[1]):
+        for j in range(num_inj):
             inj_num += 1
 
             # insert into sample object
@@ -248,10 +247,10 @@ def fill_samples():
             full_volume_list.append(injection_volume[i])
 
         samples_vial_num += 1
-        num_waters += 1
         water = "purified water inj" + str(num_waters)
         full_volume_list.append(500)
         sample_full_list.append(water)
+        num_waters += 1
         vial_num.append(1)
 
     # Make DataFrame to create excel spreadsheet
@@ -283,46 +282,40 @@ def enter_nums():
     btn.config(state=DISABLED)
 
     try:
+        global num_samples
         num_samples = int(samples.get())
-        samples_inj_num.append(num_samples)
+        global num_inj
         num_inj = int(inj.get())
-        samples_inj_num.append(num_inj)
     except ValueError:
         messagebox.showerror(title="Error", message="Input integers only")
-        # TODO: There should be a better way: issue is when injection number is wrong, sample numbers still come up
         window.destroy()
-
-    num_samples = samples_inj_num[0]
 
     # Create the text boxes to enter in the samples
     for num in range(num_samples):
         row_num[0] += 1
         n = num + 1
         txt = ("What is the name of sample %d?\n" % n)
-        sample_name_lbl = Label(window, text=txt, width=20)
+        sample_name_lbl = Label(window, text=txt, width=40)
         sample_name_lbl.grid(sticky=W, column=0, row=row_num[0])
         en = Entry(window, width=10)
         en.grid(column=1, row=row_num[0])
         samples_entries.append(en)
-        sample_volume_lbl = Label(window, text="Volume Required: ", width=20)
+        sample_volume_lbl = Label(window, text="Volume Required: ", width=40)
         sample_volume_lbl.grid(column=2, row=row_num[0])
         vol_en = Entry(window, width=10)
         vol_en.grid(column=3, row=row_num[0])
         volume_enteries.append(vol_en)
+        row_num[0] += 1
 
-    # Checkbox for Standards
-    water_1_chk = Checkbutton(window, text="Do you want to include water?", var=water_1)
-    water_2_chk = Checkbutton(window, text="Do you want to include water?", var=water_2)
-    herclon_chk = Checkbutton(window, text="Do you want to include Herclon 1mg_ml?", var=herclon)
-    water_3_chk = Checkbutton(window, text="Do you want to include water?", var=water_3)
-    row_num[0] += 1
-    water_1_chk.grid(column=0, row=row_num[0])
-    water_2_chk.grid(column=1, row=row_num[0])
-    herclon_chk.grid(column=2, row=row_num[0])
-    water_3_chk.grid(column=3, row=row_num[0])
+    # enter custom standard info
+    if standard.get() == 1:
+        standard_check[0] = 1
+        standard_name_lbl.grid(column=0, row=row_num[0])
+        standard_en.grid(column=1, row=row_num[0])
+        conc_lbl.grid(column=2, row=row_num[0])
+        conc_en.grid(column=3, row=row_num[0])
 
     # button to enter in sample names
-
     enter_btn.grid(column=4, row=row_num[0])
 
 # buttons
@@ -332,4 +325,5 @@ enter_btn = Button(window, text="Submit", command=fill_samples)
 btn = Button(window, text="Enter", command=enter_nums)
 btn.grid(column=4, row=0)
 
+# keep window running
 window.mainloop()
